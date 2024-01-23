@@ -44,7 +44,15 @@ _build_module_name(){
 }
 
 _build_git_tag_name(){
-  echo "$(_build_image_base_name)/$TAG_VERSION"
+  local branch=$1
+  local branch_array=($(_split_branch_name $branch))
+  local svc_major_minor=${branch_array[1]}
+
+  if [[ $svc_major_minor =~ "/" ]]; then # handle multi repo (branch patten: release*/service/major.minor )
+    echo "$(_build_image_base_name)/$TAG_VERSION"
+  else # handle mono repo (branch patten: release*/major.minor)
+    echo "$TAG_VERSION"
+  fi
 }
 
 _check_image_tag_already_exists(){
@@ -57,8 +65,8 @@ _check_git_tag_already_exists(){
 }
 
 _split_branch_name(){
-  local branch=$1
-  echo "$branch" | sed s/\\//" "/g # replace "/" per " " to split in array
+  local branch=$1 # supported patterns: release*/service_name/major.minor, release*/major.minor
+  echo "$branch" | sed s/\\//" "/ # replace first occurrence of "/" per " " to split in array
 }
 
 _docker_native_build(){
@@ -78,25 +86,24 @@ _docker_native_build(){
   popd || exit 1 # pop last folder
 
   # rename image generate by spring-boot to point to our private registry
-  docker image tag "$(_build_image_name)" "$(_build_image_full_name)"
+  docker image tag "$(_build_image_name)" "$(_build_image_full_name)" || exit 1
 }
 
 _discovery_tag_version(){
   local branch=$1
   local branch_array=($(_split_branch_name $branch))
-
-  local service_name=${branch_array[1]}
-  local major_minor=${branch_array[2]}
+  local svc_major_minor=${branch_array[1]}
 
   local patch="0"
-  # list remote tags | get second column | cleanup string | filter by service | silent grep | order
-  local tags_array=($(git ls-remote --tags origin | awk '{print $2}' | sed s/"refs\\/tags\\/"//g | grep -v "\\^{}" | grep "$service_name/$major_minor" | sort || true))
+  # list remote tags | get second column | cleanup string | filter by version | order
+  local tags_array=($(git ls-remote --tags origin | awk '{print $2}' | sed s/"refs\\/tags\\/"//g | grep -v "\\^{}" | grep "$svc_major_minor" | sort || true))
+
   if [[ ${#tags_array[@]} -gt 0 ]]; then # tags is not empty
     local last_tag=${tags_array[-1]} # get last tag
     local last_tag_array=($(echo "$last_tag" | sed s/\\./" "/g)) # replace "." per " " to split in array
 
     local patch=${last_tag_array[-1]}
-    local git_tag="$service_name/$major_minor.$patch"
+    local git_tag="$svc_major_minor.$patch"
 
     # check if the current commit is different from the last tag commit
     local current_commit=$(git rev-parse HEAD)
@@ -105,6 +112,7 @@ _discovery_tag_version(){
     fi
   fi
 
+  local major_minor=$(echo "$svc_major_minor" | grep -oE "[^/]+$") # get last occurrence after "/"
   echo "$major_minor.$patch"
 }
 
@@ -112,12 +120,8 @@ _validate_release_branch(){
   local type="$1"
   local branch=$(git rev-parse --abbrev-ref HEAD)
 
+  validate_folder
   if [[ "$branch" == release* ]]; then # is release branch
-
-    [ "$folder" != "" ] && echo "🚫 no parameter required when working on a release branch" && exit 1
-    local branch_array=($(_split_branch_name $branch))
-    local service_name=${branch_array[1]}
-    folder=$service_name
 
     export TAG_VERSION="$(_discovery_tag_version $branch)"
     read -p "⚠️ working on branch '$branch', automatically detected version '$TAG_VERSION' (press Enter to continue)";
@@ -126,7 +130,7 @@ _validate_release_branch(){
     git add "*pom.xml"
     git commit -m "release: bump pom version (automatic)" 1>/dev/null 2>&1 || true
 
-    local git_tag_name=$(_build_git_tag_name)
+    local git_tag_name=$(_build_git_tag_name "$branch")
     if ! _check_git_tag_already_exists "$git_tag_name"; then
       read -p "⚠️ git tag '$git_tag_name' doesn't exists and will be created/pushed (press Enter to continue)"
       git tag "$git_tag_name" -m ""
@@ -139,7 +143,6 @@ _validate_release_branch(){
     fi
 
   else # is regular branch
-    validate_folder
 
     if [ "$type" == "container" ] && _check_image_tag_already_exists; then
       read -p "⚠️ the image tag '$(_build_image_full_name)' already exists and will be overwritten (press Enter to continue)";
@@ -166,12 +169,12 @@ validate_folder(){
 }
 
 maven_build(){
-  mvn -U clean install -pl :$(_build_module_name) -am -DskipTests
+  mvn -U clean install -pl :$(_build_module_name) -am -DskipTests || exit 1
 }
 
 run_spring_boot(){
   pushd "$folder" || exit 1 # go to folder
-  mvn spring-boot:run -Dspring-boot.run.profiles=dev
+  mvn spring-boot:run -Dspring-boot.run.profiles=dev || exit 1
   popd || exit 1 # pop last folder
 }
 
@@ -180,20 +183,20 @@ docker_build(){
     maven_build
   fi
 
-  docker compose build "$(_build_image_base_name)"
+  docker compose build "$(_build_image_base_name)" || exit 1
 }
 
 docker_full_build(){
   # run tests and build image without cache
   if _is_java; then
-    mvn -U clean install -pl :$(_build_module_name) -am
+    mvn -U clean install -pl :$(_build_module_name) -am || exit 1
   fi
 
-  docker compose build "$(_build_image_base_name)" --no-cache
+  docker compose build "$(_build_image_base_name)" --no-cache || exit 1
 }
 
 docker_start(){
-  docker compose up -d $(_build_image_base_name)
+  docker compose up -d $(_build_image_base_name) || exit 1
 }
 
 docker_push(){
@@ -203,7 +206,7 @@ docker_push(){
   done
   [[ "$confirm" == "n" ]] && exit 0
 
-  docker compose push "$(_build_image_base_name)"
+  docker compose push "$(_build_image_base_name)" || exit 1
 }
 
 validate_container_release_branch(){
@@ -211,11 +214,11 @@ validate_container_release_branch(){
 }
 
 docker_stop_all(){
-  docker compose --profile dev stop
+  docker compose --profile dev stop || exit 1
 }
 
 docker_down_all(){
-  docker compose --profile dev down -v
+  docker compose --profile dev down -v || exit 1
 }
 
 docker_native_build_simple(){
@@ -237,5 +240,5 @@ maven_deploy(){
   done
   [[ "$confirm" == "n" ]] && exit 0
 
-  mvn clean deploy -pl :$(_build_module_name) -am -s .mvn/settings.xml -Drevision=$TAG_VERSION
+  mvn clean deploy -pl :$(_build_module_name) -am -s .mvn/settings.xml -Drevision=$TAG_VERSION || exit 1
 }
