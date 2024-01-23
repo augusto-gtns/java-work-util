@@ -43,12 +43,21 @@ _build_module_name(){
   echo "$folder" | grep -oE "[^/]+$" # get last occurrence after "/"
 }
 
-_build_git_tag_name(){
+_is_multi_branch(){
   local branch=$1
+
   local branch_array=($(_split_branch_name $branch))
   local svc_major_minor=${branch_array[1]}
-
   if [[ $svc_major_minor =~ "/" ]]; then # handle multi repo (branch patten: release*/service/major.minor )
+    return 0 # true
+  else # handle mono repo (branch patten: release*/major.minor)
+    return 1 # false
+  fi
+}
+
+_build_git_tag_name(){
+  local branch=$1
+  if _is_multi_branch "$branch"; then # handle multi repo (branch patten: release*/service/major.minor )
     echo "$(_build_image_base_name)/$TAG_VERSION"
   else # handle mono repo (branch patten: release*/major.minor)
     echo "$TAG_VERSION"
@@ -122,6 +131,11 @@ _validate_release_branch(){
 
   validate_folder
   if [[ "$branch" == release* ]]; then # is release branch
+
+    image_base_name="$(_build_image_base_name)/"
+    if _is_multi_branch "$branch" && ! [[ "$branch" =~ $image_base_name ]]; then
+      echo "🚫 invalid usage when working on a release branch '$branch' from folder '$folder'" && exit 1
+    fi
 
     export TAG_VERSION="$(_discovery_tag_version $branch)"
     read -p "⚠️ working on branch '$branch', automatically detected version '$TAG_VERSION' (press Enter to continue)";
