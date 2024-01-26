@@ -166,6 +166,14 @@ _validate_release_branch(){
   fi
 }
 
+_confirm_maven_deploy(){
+  local confirm=""
+  while [[ "$confirm" != "y" && "$confirm" != "n" ]]; do
+    read -r -e -p "Are you sure to deploy the artifact '$(_build_module_name):$TAG_VERSION'? (y/n): " confirm
+  done
+  if [[ "$confirm" == "n" ]]; then exit 0; fi
+}
+
 ###
 
 validate_folder(){
@@ -247,12 +255,12 @@ validate_sdk_release_branch(){
   _validate_release_branch "sdk"
 }
 
-maven_deploy(){
-  local confirm=""
-  while [[ "$confirm" != "y" && "$confirm" != "n" ]]; do
-    read -r -e -p "Are you sure to deploy the artifact '$(_build_module_name):$TAG_VERSION'? (y/n): " confirm
-  done
-  [[ "$confirm" == "n" ]] && exit 0
+maven_deploy_am(){
+  _confirm_maven_deploy
+  mvn clean deploy -pl :$(_build_module_name) -am -s .mvn/settings.xml || exit 1
+}
 
-  mvn clean deploy -pl :$(_build_module_name) -am -s .mvn/settings.xml -Drevision=$TAG_VERSION || exit 1
+maven_deploy(){
+  _confirm_maven_deploy
+  mvn clean deploy -pl :$(_build_module_name) -s .mvn/settings.xml || exit 1
 }

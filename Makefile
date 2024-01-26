@@ -85,3 +85,9 @@ deploy-artifact:
 	@cd $(FUNCTION_DIR) && source functions.sh "$(CURRENT_DIR)" && \
 	validate_sdk_release_branch && \
 	maven_deploy
+
+# deploy java artifacts to registry
+deploy-artifacts:
+	@cd $(FUNCTION_DIR) && source functions.sh "$(CURRENT_DIR)" && \
+	validate_sdk_release_branch && \
+	maven_deploy_am
