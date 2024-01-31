@@ -105,7 +105,7 @@ _discovery_tag_version(){
 
   local patch="0"
   # list remote tags | get second column | cleanup string | filter by version | order
-  local tags_array=($(git ls-remote --tags origin | awk '{print $2}' | sed s/"refs\\/tags\\/"//g | grep -v "\\^{}" | grep "$svc_major_minor" | sort || true))
+  local tags_array=($(git ls-remote --tags origin | awk '{print $2}' | sed s/"refs\\/tags\\/"//g | grep -v "\\^{}" | grep "^$svc_major_minor" | sort || true))
 
   if [[ ${#tags_array[@]} -gt 0 ]]; then # tags is not empty
     local last_tag=${tags_array[-1]} # get last tag
