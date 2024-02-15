@@ -218,7 +218,16 @@ docker_full_build(){
 }
 
 docker_start(){
-  docker compose up -d $(_build_image_base_name) || exit 1
+  local image_base_name=$(_build_image_base_name)
+
+  docker compose up -d "$image_base_name" || exit 1
+
+  while [[ "$confirm" != "y" && "$confirm" != "n" ]]; do
+    read -r -e -p "follow $image_base_name container logs? (y/n): " confirm
+  done
+  [[ "$confirm" == "n" ]] && exit 0
+
+  docker compose logs "$image_base_name" -f
 }
 
 docker_push(){
