@@ -48,18 +48,18 @@ _is_multi_branch(){
 
   local branch_array=($(_split_branch_name $branch))
   local svc_major_minor=${branch_array[1]}
-  if [[ $svc_major_minor =~ "/" ]]; then # handle multi repo (branch patten: release*/service/major.minor )
+  if [[ $svc_major_minor =~ "/" ]]; then # handle multi repo (branch pattern: release*/service/major.minor )
     return 0 # true
-  else # handle mono repo (branch patten: release*/major.minor)
+  else # handle mono repo (branch pattern: release*/major.minor)
     return 1 # false
   fi
 }
 
 _build_git_tag_name(){
   local branch=$1
-  if _is_multi_branch "$branch"; then # handle multi repo (branch patten: release*/service/major.minor )
+  if _is_multi_branch "$branch"; then # handle multi repo (branch pattern: release*/service/major.minor )
     echo "$(_build_image_base_name)/$TAG_VERSION"
-  else # handle mono repo (branch patten: release*/major.minor)
+  else # handle mono repo (branch pattern: release*/major.minor)
     echo "$TAG_VERSION"
   fi
 }
