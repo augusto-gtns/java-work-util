@@ -140,9 +140,12 @@ _validate_release_branch(){
     export TAG_VERSION="$(_discovery_tag_version $branch)"
     read -p "⚠️ working on branch '$branch', automatically detected version '$TAG_VERSION' (press Enter to continue)";
 
-    mvn versions:set -DnewVersion=$TAG_VERSION
-    git add "*pom.xml"
-    git commit -m "release: bump pom version (automatic)" 1>/dev/null 2>&1 || true
+    if _is_java; then
+      mvn -U clean test -pl :$(_build_module_name) -am || exit 1
+      mvn versions:set -DnewVersion=$TAG_VERSION
+      git add "*pom.xml"
+      git commit -m "release: bump pom version (automatic)" 1>/dev/null 2>&1 || true
+    fi
 
     local git_tag_name=$(_build_git_tag_name "$branch")
     if ! _check_git_tag_already_exists "$git_tag_name"; then
@@ -209,11 +212,11 @@ docker_build(){
 }
 
 docker_full_build(){
-  # run tests and build image without cache
   if _is_java; then
-    mvn -U clean install -pl :$(_build_module_name) -am || exit 1
+    mvn -U clean install -pl :$(_build_module_name) -am -DskipTests || exit 1
   fi
 
+  # build image without cache
   docker compose build "$(_build_image_base_name)" --no-cache || exit 1
 }
 
