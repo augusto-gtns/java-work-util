@@ -20,10 +20,13 @@ folder=$1
 ###
 
 _is_java() {
-  if [ -f "$folder/pom.xml" ]; then
-    return 0 # true
+  local full_current_dir="$(pwd)"
+  local current_dir=$(echo "$full_current_dir" | grep -oE "[^/]+$") # get last occurrence after "/"
+  # 0=true, 1=false
+  if [ "$current_dir" == "$folder" ]; then
+    if [ -f "pom.xml" ]; then return 0; else return 1; fi
   else
-    return 1 # false
+    if [ -f "$folder/pom.xml" ]; then return 0; else return 1; fi
   fi
 }
 
