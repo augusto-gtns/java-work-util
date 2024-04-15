@@ -272,10 +272,10 @@ validate_sdk_release_branch(){
 
 maven_deploy_am(){
   _confirm_maven_deploy
-  mvn clean deploy -pl :$(_build_module_name) -am -s .mvn/settings.xml || exit 1
+  mvn clean deploy -pl :$(_build_module_name) -am -DskipTests -s .mvn/settings.xml || exit 1
 }
 
 maven_deploy(){
   _confirm_maven_deploy
-  mvn clean deploy -pl :$(_build_module_name) -s .mvn/settings.xml || exit 1
+  mvn clean deploy -pl :$(_build_module_name) -DskipTests -s .mvn/settings.xml || exit 1
 }
