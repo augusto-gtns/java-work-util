@@ -19,15 +19,13 @@ folder=$1
 # functions
 ###
 
-_is_java() {
-  local full_current_dir="$(pwd)"
-  local current_dir=$(echo "$full_current_dir" | grep -oE "[^/]+$") # get last occurrence after "/"
-  # 0=true, 1=false
-  if [ "$current_dir" == "$folder" ]; then
-    if [ -f "pom.xml" ]; then return 0; else return 1; fi
+_is_java() { # 0=true, 1=false
+  if [ "${PWD##*/}" == "$folder" ]; then
+    if [ -f "pom.xml" ]; then return 0; fi
   else
-    if [ -f "$folder/pom.xml" ]; then return 0; else return 1; fi
+    if [ -f "$folder/pom.xml" ]; then return 0; fi
   fi
+  return 1;
 }
 
 _build_image_base_name(){
@@ -91,9 +89,9 @@ _docker_native_build(){
 
   pushd "$folder" || exit 1 # go to folder
   if [[ "$type" == "full" ]]; then
-    mvn -U clean spring-boot:build-image -Pnative
+    mvn -U clean spring-boot:build-image -Pnative -s .mvn/settings.xml
   else
-    mvn -U clean spring-boot:build-image -Pnative -DskipTests
+    mvn -U clean spring-boot:build-image -Pnative -DskipTests -s .mvn/settings.xml
   fi
   popd || exit 1 # pop last folder
 
@@ -144,7 +142,7 @@ _validate_release_branch(){
     read -p "⚠️ working on branch '$branch', automatically detected version '$TAG_VERSION' (press Enter to continue)";
 
     if _is_java; then
-      mvn -U clean test -pl :$(_build_module_name) -am || exit 1
+      mvn -U clean test -pl :$(_build_module_name) -am -s .mvn/settings.xml || exit 1
       mvn versions:set -DnewVersion=$TAG_VERSION
       git add "*pom.xml"
       git commit -m "release: bump pom version (automatic)" 1>/dev/null 2>&1 || true
@@ -197,12 +195,12 @@ validate_folder(){
 }
 
 maven_build(){
-  mvn -U clean install -pl :$(_build_module_name) -am -DskipTests || exit 1
+  mvn -U clean install -pl :$(_build_module_name) -am -DskipTests -s .mvn/settings.xml || exit 1
 }
 
 run_spring_boot(){
   pushd "$folder" || exit 1 # go to folder
-  mvn spring-boot:run -Dspring-boot.run.profiles=dev || exit 1
+  mvn spring-boot:run -Dspring-boot.run.profiles=dev -s .mvn/settings.xml || exit 1
   popd || exit 1 # pop last folder
 }
 
@@ -216,7 +214,7 @@ docker_build(){
 
 docker_full_build(){
   if _is_java; then
-    mvn -U clean install -pl :$(_build_module_name) -am -DskipTests || exit 1
+    mvn -U clean install -pl :$(_build_module_name) -am -DskipTests -s .mvn/settings.xml || exit 1
   fi
 
   # build image without cache
