@@ -79,27 +79,6 @@ _split_branch_name(){
   echo "$branch" | sed s/\\//" "/ # replace first occurrence of "/" per " " to split in array
 }
 
-_docker_native_build(){
-  local type=$1
-
-  if ! _is_java; then
-    echo "not supported for $folder"
-    exit 1;
-  fi
-
-  local origin_path="$(pwd)"
-  pushd "$folder" || exit 1 # go to folder
-  if [[ "$type" == "full" ]]; then
-    mvn -U clean spring-boot:build-image -Pnative -s $origin_path/.mvn/settings.xml
-  else
-    mvn -U clean spring-boot:build-image -Pnative -DskipTests -s $origin_path/.mvn/settings.xml
-  fi
-  popd || exit 1 # pop last folder
-
-  # rename image generate by spring-boot to point to our private registry
-  docker image tag "$(_build_image_name)" "$(_build_image_full_name)" || exit 1
-}
-
 _discovery_tag_version(){
   local branch=$1
   local branch_array=($(_split_branch_name $branch))
@@ -222,6 +201,21 @@ docker_full_build(){
   docker compose build "$(_build_image_base_name)" --no-cache || exit 1
 }
 
+docker_native_build(){
+  if ! _is_java; then
+    echo "not supported for $folder"
+    exit 1;
+  fi
+
+  local origin_path="$(pwd)"
+  pushd "$folder" || exit 1 # go to folder
+  mvn -U clean spring-boot:build-image -Pnative -DskipTests -s $origin_path/.mvn/settings.xml
+  popd || exit 1 # pop last folder
+
+  # rename image generate by spring-boot to point to our private registry
+  docker image tag "$(_build_image_name)" "$(_build_image_full_name)" || exit 1
+}
+
 docker_start(){
   local image_base_name=$(_build_image_base_name)
 
@@ -255,14 +249,6 @@ docker_stop_all(){
 
 docker_down_all(){
   docker compose --profile dev down -v || exit 1
-}
-
-docker_native_build_simple(){
-  _docker_native_build ""
-}
-
-docker_native_build_full(){
-  _docker_native_build "full"
 }
 
 validate_sdk_release_branch(){

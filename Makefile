@@ -64,20 +64,20 @@ docker-down-all:
 docker-native-build:
 	@cd $(FUNCTION_DIR) && source functions.sh "$(CURRENT_DIR)" && \
 	validate_folder && \
-	docker_native_build_simple
+	docker_native_build
 
 # build docker native image and start service
 docker-native-build-start: 
 	@cd $(FUNCTION_DIR) && source functions.sh "$(CURRENT_DIR)" && \
 	validate_folder && \
-	docker_native_build_simple && \
+	docker_native_build && \
 	docker_start
 
 # build docker native image and push to registry
 docker-native-build-push:
 	@cd $(FUNCTION_DIR) && source functions.sh "$(CURRENT_DIR)" && \
 	validate_container_release_branch && \
-	docker_native_build_full && \
+	docker_native_build && \
 	docker_push
 
 # deploy java artifact to registry
