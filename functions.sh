@@ -87,11 +87,12 @@ _docker_native_build(){
     exit 1;
   fi
 
+  local origin_path="$(pwd)"
   pushd "$folder" || exit 1 # go to folder
   if [[ "$type" == "full" ]]; then
-    mvn -U clean spring-boot:build-image -Pnative -s .mvn/settings.xml
+    mvn -U clean spring-boot:build-image -Pnative -s $origin_path/.mvn/settings.xml
   else
-    mvn -U clean spring-boot:build-image -Pnative -DskipTests -s .mvn/settings.xml
+    mvn -U clean spring-boot:build-image -Pnative -DskipTests -s $origin_path/.mvn/settings.xml
   fi
   popd || exit 1 # pop last folder
 
