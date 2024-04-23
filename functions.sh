@@ -125,7 +125,7 @@ _validate_release_branch(){
       mvn -U clean test -pl :$(_build_module_name) -am -s .mvn/settings.xml || exit 1
       mvn versions:set -DnewVersion=$TAG_VERSION
       git add "*pom.xml"
-      git commit -m "release: bump pom version (automatic)" 1>/dev/null 2>&1 || true
+      git commit "*pom.xml" -m "release: bump pom version (automatic)" 1>/dev/null 2>&1 || true
     fi
 
     local git_tag_name=$(_build_git_tag_name "$branch")
