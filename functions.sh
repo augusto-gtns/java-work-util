@@ -85,8 +85,8 @@ _discovery_tag_version(){
   local svc_major_minor=${branch_array[1]}
 
   local patch="0"
-  # list remote tags | get second column | cleanup string | filter by version | order
-  local tags_array=($(git ls-remote --tags origin | awk '{print $2}' | sed s/"refs\\/tags\\/"//g | grep -v "\\^{}" | grep "^$svc_major_minor" | sort -n || true))
+  # list remote tags | get second column | cleanup string | filter by version | remove non digits or dot | order numerically
+  local tags_array=($(git ls-remote --tags origin | awk '{print $2}' | sed s/"refs\\/tags\\/"//g | grep -v "\\^{}" | grep "^$svc_major_minor" | sed 's/[^0-9\\.]//g' | sort -n || true))
 
   if [[ ${#tags_array[@]} -gt 0 ]]; then # tags is not empty
     local last_tag=${tags_array[-1]} # get last tag
