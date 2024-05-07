@@ -4,8 +4,10 @@
 set -eET
 trap 'echo "ERROR in $0 file at line $LINENO (code $?)"' ERR
 
-# source env vars
-source .env 1>/dev/null 2>&1 || true
+# load env vars
+if printenv TAG_VERSION >/dev/null 2>&1; then HOST_TAG_VERSION="$(printenv TAG_VERSION)"; fi # store host TAG_VERSION if exists
+source .env 1>/dev/null 2>&1 || true # source .env file if exists
+if [ -n "${HOST_TAG_VERSION+x}" ]; then TAG_VERSION="$HOST_TAG_VERSION"; fi # host env has precedence over local env
 if [ -z "${TAG_VERSION+x}" ]; then TAG_VERSION="latest"; fi # provide default value if var is unset
 
 # check required dependencies
