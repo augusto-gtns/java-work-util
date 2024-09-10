@@ -125,16 +125,16 @@ _validate_release_branch(){
 
     if _is_java; then
       mvn -U clean test -pl :$(_build_module_name) -am -s .mvn/settings.xml || exit 1
-      mvn versions:set -DnewVersion=$TAG_VERSION
-      git add "*pom.xml"
+      mvn versions:set -DnewVersion=$TAG_VERSION || exit 1
+      git add "*pom.xml" || exit 1
       git commit "*pom.xml" -m "release: bump pom version (automatic)" 1>/dev/null 2>&1 || true
     fi
 
     local git_tag_name=$(_build_git_tag_name "$branch")
     if ! _check_git_tag_already_exists "$git_tag_name"; then
       read -p "⚠️ git tag '$git_tag_name' doesn't exists and will be created/pushed (press Enter to continue)"
-      git tag "$git_tag_name" -m ""
-      git push origin "$git_tag_name"
+      git tag "$git_tag_name" -m "" || exit 1
+      git push origin "$git_tag_name" || exit 1
     fi
 
     if [ "$type" == "container" ] && _check_image_tag_already_exists; then
@@ -143,11 +143,10 @@ _validate_release_branch(){
     fi
 
   else # is regular branch
+    read -p "working on branch '$branch', detected version '$TAG_VERSION' (press Enter to continue)";
 
     if [ "$type" == "container" ] && _check_image_tag_already_exists; then
       read -p "⚠️ the image tag '$(_build_image_full_name)' already exists and will be overwritten (press Enter to continue)";
-    else
-      read -p "working on branch '$branch', detected version '$TAG_VERSION' (press Enter to continue)";
     fi
   fi
 }
@@ -158,6 +157,12 @@ _confirm_maven_deploy(){
     read -r -e -p "Are you sure to deploy the artifact '$(_build_module_name):$TAG_VERSION'? (y/n): " confirm
   done
   if [[ "$confirm" == "n" ]]; then exit 0; fi
+}
+
+_check_ci_pipeline(){
+  if [ -f ".gitlab-ci.yml" ]; then
+    echo "⚠️ CI config detected (.gitlab-ci.yml), publishing artifacts '$TAG_VERSION' should be executed by the pipeline" && exit 0
+  fi
 }
 
 ###
@@ -182,7 +187,7 @@ maven_build(){
 
 run_spring_boot(){
   pushd "$folder" || exit 1 # go to folder
-  mvn spring-boot:run -Dspring-boot.run.profiles=dev -s .mvn/settings.xml || exit 1
+  mvn spring-boot:run -Dspring-boot.run.profiles=dev -s ../.mvn/settings.xml || exit 1
   popd || exit 1 # pop last folder
 }
 
@@ -232,6 +237,8 @@ docker_start(){
 }
 
 docker_push(){
+  _check_ci_pipeline
+
   local confirm=""
   while [[ "$confirm" != "y" && "$confirm" != "n" ]]; do
     read -r -e -p "Are you sure to push image tag $(_build_image_full_name)? (y/n): " confirm
@@ -258,11 +265,15 @@ validate_sdk_release_branch(){
 }
 
 maven_deploy_am(){
+  _check_ci_pipeline
+
   _confirm_maven_deploy
   mvn clean source:jar deploy -pl :$(_build_module_name) -am -DskipTests -s .mvn/settings.xml || exit 1
 }
 
 maven_deploy(){
+  _check_ci_pipeline
+
   _confirm_maven_deploy
   mvn clean source:jar deploy -pl :$(_build_module_name) -DskipTests -s .mvn/settings.xml || exit 1
 }
