@@ -124,7 +124,7 @@ _validate_release_branch(){
     read -p "⚠️ working on branch '$branch', automatically detected version '$TAG_VERSION' (press Enter to continue)";
 
     if _is_java; then
-      mvn -U clean test -pl :$(_build_module_name) -am -s .mvn/settings.xml || exit 1
+      mvn -U clean verify -pl :$(_build_module_name) -am -s .mvn/settings.xml || exit 1
       mvn versions:set -DnewVersion=$TAG_VERSION || exit 1
       git add "*pom.xml" || exit 1
       git commit "*pom.xml" -m "release: bump pom version (automatic)" 1>/dev/null 2>&1 || true
@@ -144,6 +144,10 @@ _validate_release_branch(){
 
   else # is regular branch
     read -p "working on branch '$branch', detected version '$TAG_VERSION' (press Enter to continue)";
+
+    if _is_java; then
+      mvn -U clean verify -pl :$(_build_module_name) -am -s .mvn/settings.xml || exit 1
+    fi
 
     if [ "$type" == "container" ] && _check_image_tag_already_exists; then
       read -p "⚠️ the image tag '$(_build_image_full_name)' already exists and will be overwritten (press Enter to continue)";
